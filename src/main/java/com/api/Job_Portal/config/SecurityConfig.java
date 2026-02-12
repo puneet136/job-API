@@ -58,8 +58,12 @@ public class SecurityConfig {
                                 "/v3/api-docs",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
+                                "/swagger-ui/index.html",
                                 "/swagger-resources/**",
-                                "/webjars/**"
+                                "/webjars/**",
+                                "/swagger-resources",           // extra
+                                "/configuration/ui",            // extra
+                                "/configuration/security"
                         ).permitAll()
 
                         // 2. PUBLIC AUTH ENDPOINTS
