@@ -14,7 +14,8 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/**")  // Allow CORS on all endpoints
                 .allowedOrigins("*")  // For demo/portfolio – allows from any origin (including Swagger UI in browser)
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")  // All methods you use
-                .allowedHeaders("*")  // Allow all headers (including Authorization, Content-Type)
+                .allowedHeaders("*")
+                .exposedHeaders("Authorization") // Allow all headers (including Authorization, Content-Type)
                 .allowCredentials(false)  // Set true only if you use cookies/auth with credentials
                 .maxAge(3600);  // Cache preflight for 1 hour
     }
