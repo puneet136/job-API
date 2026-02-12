@@ -61,8 +61,9 @@ public class SecurityConfig {
                                 "/swagger-ui/index.html",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                "/swagger-resources",           // extra
-                                "/configuration/ui",            // extra
+                                "/swagger-resources",
+                                "/webjars/springdoc-openapi-ui/**",         // extra
+                                "/configuration/ui",                        // extra
                                 "/configuration/security"
                         ).permitAll()
 
