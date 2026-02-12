@@ -1,22 +1,28 @@
 package com.api.Job_Portal.config;
 
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.EnableWebMvc;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
 
 @Configuration
-@EnableWebMvc
-public class CorsConfig implements WebMvcConfigurer {
+public class CorsConfig {
 
-    @Override
-    public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**")  // Allow CORS on all endpoints
-                .allowedOrigins("*")  // For demo/portfolio – allows from any origin (including Swagger UI in browser)
-                .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD")  // All methods you use
-                .allowedHeaders("*")
-                .exposedHeaders("Authorization") // Allow all headers (including Authorization, Content-Type)
-                .allowCredentials(false)  // Set true only if you use cookies/auth with credentials
-                .maxAge(3600);  // Cache preflight for 1 hour
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+
+        // For demo/portfolio – allow everything (change to specific origins in real prod)
+        config.setAllowCredentials(false);
+        config.addAllowedOrigin("*");               // ← Allows Swagger UI from browser
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");               // GET, POST, PUT, DELETE, OPTIONS, etc.
+        config.addExposedHeader("Authorization");   // Lets browser see JWT token in response
+        config.setMaxAge(3600L);
+
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
     }
 }

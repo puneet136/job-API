@@ -16,6 +16,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -23,6 +28,9 @@ public class SecurityConfig {
 
     @Autowired
     private JwtAutenticationEntryPoint authenticationEntryPoint;
+
+    @Autowired
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public UserDetailsService userDetailsService() {
@@ -48,11 +56,32 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) throws Exception {
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("*"));           // For demo – change to specific domains in production
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setExposedHeaders(List.of("Authorization"));
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Enable CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+
+                // Disable CSRF (safe for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
+
+                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // 1. PUBLIC SWAGGER & OPENAPI ENDPOINTS
+                        // 1. Public Swagger & OpenAPI endpoints
                         .requestMatchers(
                                 "/v3/api-docs/**",
                                 "/v3/api-docs",
@@ -61,19 +90,18 @@ public class SecurityConfig {
                                 "/swagger-ui/index.html",
                                 "/swagger-resources/**",
                                 "/webjars/**",
-                                "/swagger-resources",
-                                "/webjars/springdoc-openapi-ui/**",         // extra
-                                "/configuration/ui",                        // extra
+                                "/webjars/springdoc-openapi-ui/**",
+                                "/configuration/ui",
                                 "/configuration/security"
                         ).permitAll()
 
-                        // 2. PUBLIC AUTH ENDPOINTS
+                        // 2. Public auth endpoints
                         .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
 
-                        // 3. PUBLIC JOB LISTINGS
+                        // 3. Public job listings (GET only)
                         .requestMatchers(HttpMethod.GET, "/api/jobs", "/api/jobs/{id}").permitAll()
 
-                        // 4. ROLE-BASED ACCESS
+                        // 4. Role-based protected endpoints
                         .requestMatchers("/api/admin/**").hasAuthority("ROLE_ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/jobs").hasAuthority("ROLE_EMPLOYER")
                         .requestMatchers(HttpMethod.PUT, "/api/jobs/{id}").hasAuthority("ROLE_EMPLOYER")
@@ -81,13 +109,24 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/jobs/{id}/apply").hasAuthority("ROLE_USER")
                         .requestMatchers(HttpMethod.GET, "/api/applications").hasAuthority("ROLE_USER")
 
-                        // 5. EVERYTHING ELSE MUST BE AUTHENTICATED
+                        // 5. User-specific protected endpoints
                         .requestMatchers("/api/users/me").authenticated()
+
+                        // 6. Everything else requires authentication
                         .anyRequest().authenticated()
                 )
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Stateless session (JWT-based)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
+
+                // Custom authentication entry point (for 401 responses)
                 .exceptionHandling(handling -> handling
-                        .authenticationEntryPoint(authenticationEntryPoint))
+                        .authenticationEntryPoint(authenticationEntryPoint)
+                )
+
+                // Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
