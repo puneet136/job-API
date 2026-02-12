@@ -1,35 +1,37 @@
-# Stage 1: Build JAR with Maven
+# Stage 1: Build JAR with Maven + JDK 21
 FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /build
 
-# Copy pom first for dependency caching
+# Copy pom.xml first → caches dependencies for faster rebuilds
 COPY pom.xml .
 RUN mvn dependency:go-offline -B
 
-# Copy source
+# Copy source code
 COPY src ./src
 
-# Build (skip tests for faster deploys)
+# Build the JAR (skip tests to speed up deploys on Render)
 RUN mvn clean package -DskipTests
 
-# Stage 2: Lightweight runtime
-FROM eclipse-temurin:17-jre-alpine
+# Stage 2: Lightweight runtime with Java 21 JRE (matches compile version)
+FROM eclipse-temurin:21-jre-alpine
 
-# Non-root user for security
+# Create non-root user for better security (recommended)
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-# Copy JAR from build stage
+# Copy the built JAR from the builder stage
 COPY --from=builder /build/target/*.jar app.jar
 
-# Set permissions
+# Set correct permissions
 RUN chown -R appuser:appgroup /app
 
+# Run as non-root
 USER appuser:appgroup
 
-# Render uses $PORT env var
+# Expose the port Render assigns via $PORT (fallback to 8080)
 EXPOSE ${PORT:-8080}
 
+# Start the Spring Boot application
 ENTRYPOINT ["java", "-jar", "app.jar"]
